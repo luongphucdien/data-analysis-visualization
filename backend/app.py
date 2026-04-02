@@ -1,7 +1,8 @@
-from flask import Flask, jsonify
+from flask import Flask, jsonify, request
 from flask_caching import Cache
 from flask_cors import CORS, cross_origin
 import pandas as pd
+from typing import Literal
 
 config = {
     "DEBUG": True,
@@ -32,7 +33,7 @@ def test():
     dataset = get_dataset()
     return jsonify(dataset.head().to_dict(orient="records")), 200
 
-@app.route("/id_vs_gender", methods=["GET"])
+@app.route("/persons", methods=["GET"])
 def id_vs_gender_table():
     dataset = get_dataset()
 
@@ -49,3 +50,36 @@ def id_vs_gender_table():
     })
 
     return jsonify(id_vs_gender_reset.fillna(0).to_dict(orient="records")), 200
+
+def overall_health_extractor(dataset: pd.DataFrame, type: Literal["general", "mental"]):
+    overall_health = dataset[(dataset["Overall health"] != "Total, self-perceived general health") &
+                            (dataset["Overall health"] != "Total, self-perceived mental health")]
+
+    health = overall_health[overall_health["Overall health"].str.match(f"^Self-perceived {type}")]
+    health["Overall health"] = health["Overall health"].str.replace(f"Self-perceived {type} health, ", "").str.rstrip()
+
+    id_vs_health = health.pivot_table(index=["Indigenous identity"], columns=["Overall health"], values="VALUE")
+
+    return id_vs_health
+
+@app.route("/health", methods=["GET"])
+def general_health_table():
+    dataset = get_dataset()
+
+    table_general = overall_health_extractor(dataset, type="general")
+    table_mental = overall_health_extractor(dataset, type="mental")
+
+    table = pd.concat([table_general, table_mental], keys=["general", "mental"])
+    result = {}
+    for category, group in table.groupby(level=0):
+        records = group.reset_index(level=1).rename(columns={
+            "Indigenous identity": "identity",
+            "excellent": "A",
+            "excellent or very good": "B_plus",
+            "very good": "B",
+            "good": "C",
+            "fair or poor": "F" 
+        }).to_dict(orient="records")
+        result[category] = records
+
+    return jsonify(result), 200
