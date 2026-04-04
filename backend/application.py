@@ -49,7 +49,7 @@ with application.app_context():
 
 @application.route("/", methods=["GET"])
 def test():
-    return 200
+    return "Success", 200
 
 @application.route("/persons", methods=["GET"])
 def id_vs_gender_table():
