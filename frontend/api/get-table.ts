@@ -1,8 +1,8 @@
-import { IdVsGenderType, OverallHealthType } from "@/types/types"
+import { OverallHealth, PersonsOnGender } from "@/types/types"
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL
 
-export const getIdVsGender = async () => {
+export const getPersons = async () => {
     try {
         const response = await fetch(`${API_URL}/persons`, {
             method: "GET",
@@ -12,7 +12,7 @@ export const getIdVsGender = async () => {
             throw new Error(`Response Status: ${response.status}`)
         }
 
-        const result: IdVsGenderType[] = await response.json()
+        const result: PersonsOnGender[] = await response.json()
         return result
     } catch (error) {
         console.error(error)
@@ -26,10 +26,10 @@ export async function getOverallHealth() {
             method: "GET",
         })
 
-        const result: OverallHealthType = await response.json()
+        const result: OverallHealth[] = await response.json()
         return result
     } catch (error) {
         console.error(error)
-        return { general: [], mental: [] } satisfies OverallHealthType
+        return [] satisfies OverallHealth[]
     }
 }
