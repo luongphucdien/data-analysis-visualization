@@ -9,17 +9,17 @@ from settings import Config
 
 load_dotenv()
 
-appplication = Flask(__name__)
-appplication.config.from_object(Config)
-cache = Cache(app=appplication)
-cors = CORS(appplication, resources={r"/*": {"origins": appplication.config["ALLOWED_ORIGINS"]}})
+application = Flask(__name__)
+application.config.from_object(Config)
+cache = Cache(app=application)
+cors = CORS(application, resources={r"/*": {"origins": application.config["ALLOWED_ORIGINS"]}})
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 def prepare_dataset():
     try:
-        dataset = pd.read_csv(appplication.config["DATASET_PATH"])
+        dataset = pd.read_csv(application.config["DATASET_PATH"])
         drop_cols = ["UOM_ID", "SCALAR_FACTOR", "SCALAR_ID", "VECTOR", "SYMBOL", "TERMINATED", "DECIMALS"]
         dataset["VALUE"] = pd.to_numeric(dataset["VALUE"], errors="coerce")
         dataset.drop(labels=drop_cols, axis="columns", inplace=True)
@@ -42,15 +42,15 @@ def get_dataset() -> pd.DataFrame:
         abort(503, description="Dataset unavailable")
     return dataset
 
-with appplication.app_context():
+with application.app_context():
     prepare_dataset()
 
-@appplication.route("/", methods=["GET"])
+@application.route("/", methods=["GET"])
 def test():
     dataset = get_dataset()
     return jsonify(dataset.head().to_dict(orient="records")), 200
 
-@appplication.route("/persons", methods=["GET"])
+@application.route("/persons", methods=["GET"])
 def id_vs_gender_table():
     dataset = get_dataset()
 
@@ -88,7 +88,7 @@ def overall_health_extractor(dataset: pd.DataFrame, type: Literal["general", "me
 
     return table
 
-@appplication.route("/health", methods=["GET"])
+@application.route("/health", methods=["GET"])
 def general_health_table():
     dataset = get_dataset()
 
@@ -120,3 +120,6 @@ def general_health_table():
     result = table_flat.to_dict(orient="records")
 
     return jsonify(result), 200
+
+if __name__ == "__main__":
+    application.run()
