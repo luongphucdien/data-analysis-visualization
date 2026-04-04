@@ -1,13 +1,15 @@
 import logging
+import os
 from flask import Flask, jsonify, abort
 from flask_caching import Cache
 from flask_cors import CORS
 import pandas as pd
 from typing import Literal
 from dotenv import load_dotenv
-from settings import Config
 
 load_dotenv()
+
+from settings import Config
 
 application = Flask(__name__)
 application.config.from_object(Config)
@@ -122,4 +124,5 @@ def general_health_table():
     return jsonify(result), 200
 
 if __name__ == "__main__":
-    application.run()
+    port = int(os.environ.get("PORT", 8080))
+    application.run(host='0.0.0.0', port=port)
