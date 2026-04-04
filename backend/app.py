@@ -1,4 +1,5 @@
 import logging
+from mangum import Mangum
 from flask import Flask, jsonify, abort
 from flask_caching import Cache
 from flask_cors import CORS
@@ -120,3 +121,5 @@ def general_health_table():
     result = table_flat.to_dict(orient="records")
 
     return jsonify(result), 200
+
+handler = Mangum(app, lifespan="off")
