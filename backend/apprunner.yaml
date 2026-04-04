@@ -1,0 +1,24 @@
+version: 1.0
+runtime: python311
+build:
+  commands:
+    build:
+      - pip3 install -r requirements.txt
+run:
+  runtime-version: 3.11
+  pre-run:
+    - pip3 install -r requirements.txt
+  command: gunicorn --bind 0.0.0.0:8080 --workers 2 --timeout 120 application:application
+  network:
+    port: 8080
+  env:
+    - name: DATASET_PATH
+      value: "41100080.csv"
+    - name: PRODUCTION
+      value: "False"
+    - name: FLASK_DEBUG
+      value: "False"
+    - name: FRONTEND_URL
+      value: "*"
+    - name: CACHE_TIMEOUT
+      value: 3600
