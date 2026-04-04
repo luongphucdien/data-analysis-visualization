@@ -1,18 +1,17 @@
-from flask import Flask, jsonify, request
+from flask import Flask, jsonify
 from flask_caching import Cache
-from flask_cors import CORS, cross_origin
+from flask_cors import CORS
 import pandas as pd
 from typing import Literal
+from dotenv import load_dotenv
+from settings import Config
 
-config = {
-    "DEBUG": True,
-    "CACHE_TYPE": "SimpleCache",
-    "CACHE_DEFAULT_TIMEOUT": 3600
-}
+load_dotenv()
+
 app = Flask(__name__)
-app.config.from_mapping(config)
+app.config.from_object(Config)
 cache = Cache(app)
-cors = CORS(app, resources={r"/*": {"origins": ["http://localhost:3000", "http://127.0.0.1:3000"]}})
+cors = CORS(app, resources={r"/*": {"origins": app.config["ALLOWED_ORIGINS"]}})
 
 def prepare_dataset():
     dataset = pd.read_csv("41100080.csv")
@@ -103,41 +102,3 @@ def general_health_table():
     result = table_flat.to_dict(orient="records")
 
     return jsonify(result), 200
-
-# @app.route("/health/age", methods=["GET"])
-# def health_vs_age_table():
-#     dataset = get_dataset()
-#     overall_health = overall_health_extractor(dataset)
-    
-#     health_vs_age = dataset.pivot_table(index=["Indigenous identity", "Overall health"], columns=["Age group"], values="VALUE")
-
-#     drop_age = ["25 to 54 years", "Total, 15 years and over"]
-#     drop_identity = ["First Nations (North American Indian), Registered or Treaty Indian",
-#                     "First Nations (North American Indian), not a Registered or Treaty Indian"]
-
-#     health_vs_age.drop(columns=drop_age, index=drop_identity, inplace=True)
-#     new_health_level = health_vs_age.index.levels[1].str.replace("Self-perceived general health, ", "general-")
-#     new_health_level = new_health_level.str.replace("Self-perceived mental health, ", "mental-")
-
-#     grade_map = {
-#         "excellent": "A",
-#         "excellent or very good": "B_plus",
-#         "very good": "B",
-#         "good": "C",
-#         "fair or poor": "F"
-#     }
-#     for old_label , new_grade in grade_map.items():
-#         new_health_level = new_health_level.str.replace(fr"{old_label}\s*$", new_grade, regex=True)
-#     health_vs_age.index = health_vs_age.index.set_levels(new_health_level, level=1)
-#     health_vs_age_reset = health_vs_age.reset_index()
-#     result = health_vs_age_reset.rename(columns={
-#         "Indigenous identity": "identity",
-#         "Overall health": "health",
-#         "15 to 24 years": "15_24",
-#         "25 to 34 years": "25_34",
-#         "35 to 44 years": "35_44",
-#         "45 to 54 years": "45_54",
-#         "55 years and over": "55_over"
-#     }).to_dict(orient="records")
-
-#     return jsonify(result), 200
