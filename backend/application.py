@@ -49,8 +49,7 @@ with application.app_context():
 
 @application.route("/", methods=["GET"])
 def test():
-    dataset = get_dataset()
-    return jsonify(dataset.head().to_dict(orient="records")), 200
+    return 200
 
 @application.route("/persons", methods=["GET"])
 def id_vs_gender_table():
