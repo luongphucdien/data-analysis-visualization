@@ -1,4 +1,5 @@
-from flask import Flask, jsonify
+import logging
+from flask import Flask, jsonify, abort
 from flask_caching import Cache
 from flask_cors import CORS
 import pandas as pd
@@ -13,19 +14,36 @@ app.config.from_object(Config)
 cache = Cache(app)
 cors = CORS(app, resources={r"/*": {"origins": app.config["ALLOWED_ORIGINS"]}})
 
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
 def prepare_dataset():
-    dataset = pd.read_csv("41100080.csv")
-    drop_cols = ["UOM_ID", "SCALAR_FACTOR", "SCALAR_ID", "VECTOR", "SYMBOL", "TERMINATED", "DECIMALS"]
-    dataset.drop(labels=drop_cols, axis="columns", inplace=True)
-    dataset = dataset[~(dataset.STATUS == "F")]
-    cache.set("dataset", dataset)
-    return dataset
+    try:
+        dataset = pd.read_csv(app.config["DATASET_PATH"])
+        drop_cols = ["UOM_ID", "SCALAR_FACTOR", "SCALAR_ID", "VECTOR", "SYMBOL", "TERMINATED", "DECIMALS"]
+        dataset["VALUE"] = pd.to_numeric(dataset["VALUE"], errors="coerce")
+        dataset.drop(labels=drop_cols, axis="columns", inplace=True)
+        dataset = dataset[~(dataset.STATUS == "F")].copy()
+        cache.set("dataset", dataset, timeout=0)
+        logger.info("Dataset prepared and cached successfully.")
+        return dataset
+    except FileNotFoundError:
+        logger.error("Dataset file not found.")
+        return None
+    except Exception as e:
+        logger.error(f"Error preparing dataset: {e}")
+        return None
 
 def get_dataset() -> pd.DataFrame:
     dataset = cache.get("dataset")
     if dataset is None:
         dataset = prepare_dataset()
+    if dataset is None:
+        abort(503, description="Dataset unavailable")
     return dataset
+
+with app.app_context():
+    prepare_dataset()
 
 @app.route("/", methods=["GET"])
 def test():
@@ -58,7 +76,7 @@ def overall_health_extractor(dataset: pd.DataFrame, type: Literal["general", "me
     overall_health = dataset[(dataset["Overall health"] != "Total, self-perceived general health") &
                             (dataset["Overall health"] != "Total, self-perceived mental health")]
 
-    health = overall_health[overall_health["Overall health"].str.match(f"^Self-perceived {type}")]
+    health = overall_health[overall_health["Overall health"].str.match(f"^Self-perceived {type}")].copy()
     health["Overall health"] = health["Overall health"].str.replace(f"Self-perceived {type} health, ", "").str.rstrip()
 
     table = health.pivot_table(index=["Indigenous identity", "Overall health"], columns=["Age group"], values="VALUE")
