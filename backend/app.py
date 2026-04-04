@@ -39,7 +39,11 @@ def id_vs_gender_table():
 
     no_of_persons = dataset[dataset.Statistics == "Number of persons"]
     id_vs_gender = no_of_persons.pivot_table(index=["Indigenous identity"], columns=["Gender"],  values="VALUE")
-    id_vs_gender = id_vs_gender.drop(index="Indigenous responses not included elsewhere")
+
+    drop_identity = ["First Nations (North American Indian), Registered or Treaty Indian",
+                    "First Nations (North American Indian), not a Registered or Treaty Indian","Indigenous responses not included elsewhere"]
+    
+    id_vs_gender = id_vs_gender.drop(index=drop_identity)
 
 
     id_vs_gender_reset = id_vs_gender.reset_index().rename(columns={
@@ -58,9 +62,14 @@ def overall_health_extractor(dataset: pd.DataFrame, type: Literal["general", "me
     health = overall_health[overall_health["Overall health"].str.match(f"^Self-perceived {type}")]
     health["Overall health"] = health["Overall health"].str.replace(f"Self-perceived {type} health, ", "").str.rstrip()
 
-    id_vs_health = health.pivot_table(index=["Indigenous identity"], columns=["Overall health"], values="VALUE")
+    table = health.pivot_table(index=["Indigenous identity", "Overall health"], columns=["Age group"], values="VALUE")
 
-    return id_vs_health
+    drop_age = ["25 to 54 years"]
+    drop_identity = ["First Nations (North American Indian), Registered or Treaty Indian",
+                    "First Nations (North American Indian), not a Registered or Treaty Indian"]
+    table.drop(columns=drop_age, index=drop_identity, inplace=True)
+
+    return table
 
 @app.route("/health", methods=["GET"])
 def general_health_table():
@@ -70,16 +79,65 @@ def general_health_table():
     table_mental = overall_health_extractor(dataset, type="mental")
 
     table = pd.concat([table_general, table_mental], keys=["general", "mental"])
-    result = {}
-    for category, group in table.groupby(level=0):
-        records = group.reset_index(level=1).rename(columns={
-            "Indigenous identity": "identity",
-            "excellent": "A",
-            "excellent or very good": "B_plus",
-            "very good": "B",
-            "good": "C",
-            "fair or poor": "F" 
-        }).to_dict(orient="records")
-        result[category] = records
+    age_map = {
+        "15 to 24 years": "15_24",
+        "25 to 34 years": "25_34",
+        "35 to 44 years": "35_44",
+        "45 to 54 years": "45_54",
+        "55 years and over": "55_over",
+        "Total, 15 years and over": "total"
+    }
+    table.rename(columns=age_map, inplace=True)
+
+    table.index.names = ["type", "identity", "health_status"]
+    table_flat = table.reset_index()
+
+    grade_map = {
+        "excellent": "A",
+        "excellent or very good": "B_plus",
+        "very good": "B",
+        "good": "C",
+        "fair or poor": "F"
+    }
+    table_flat["health_status"] = table_flat["health_status"].str.strip().map(grade_map)
+    result = table_flat.to_dict(orient="records")
 
     return jsonify(result), 200
+
+# @app.route("/health/age", methods=["GET"])
+# def health_vs_age_table():
+#     dataset = get_dataset()
+#     overall_health = overall_health_extractor(dataset)
+    
+#     health_vs_age = dataset.pivot_table(index=["Indigenous identity", "Overall health"], columns=["Age group"], values="VALUE")
+
+#     drop_age = ["25 to 54 years", "Total, 15 years and over"]
+#     drop_identity = ["First Nations (North American Indian), Registered or Treaty Indian",
+#                     "First Nations (North American Indian), not a Registered or Treaty Indian"]
+
+#     health_vs_age.drop(columns=drop_age, index=drop_identity, inplace=True)
+#     new_health_level = health_vs_age.index.levels[1].str.replace("Self-perceived general health, ", "general-")
+#     new_health_level = new_health_level.str.replace("Self-perceived mental health, ", "mental-")
+
+#     grade_map = {
+#         "excellent": "A",
+#         "excellent or very good": "B_plus",
+#         "very good": "B",
+#         "good": "C",
+#         "fair or poor": "F"
+#     }
+#     for old_label , new_grade in grade_map.items():
+#         new_health_level = new_health_level.str.replace(fr"{old_label}\s*$", new_grade, regex=True)
+#     health_vs_age.index = health_vs_age.index.set_levels(new_health_level, level=1)
+#     health_vs_age_reset = health_vs_age.reset_index()
+#     result = health_vs_age_reset.rename(columns={
+#         "Indigenous identity": "identity",
+#         "Overall health": "health",
+#         "15 to 24 years": "15_24",
+#         "25 to 34 years": "25_34",
+#         "35 to 44 years": "35_44",
+#         "45 to 54 years": "45_54",
+#         "55 years and over": "55_over"
+#     }).to_dict(orient="records")
+
+#     return jsonify(result), 200
