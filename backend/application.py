@@ -22,11 +22,15 @@ logger = logging.getLogger(__name__)
 def prepare_dataset():
     try:
         dataset = pd.read_csv(application.config["DATASET_PATH"])
+        logging.info("Dataset loaded successfully.")
+        logging.info(f"Columns: {dataset.columns.to_list()}")
+
         drop_cols = ["UOM_ID", "SCALAR_FACTOR", "SCALAR_ID", "VECTOR", "SYMBOL", "TERMINATED", "DECIMALS"]
         dataset["VALUE"] = pd.to_numeric(dataset["VALUE"], errors="coerce")
         dataset.drop(labels=drop_cols, axis="columns", inplace=True)
         dataset = dataset[~(dataset.STATUS == "F")].copy()
         cache.set("dataset", dataset, timeout=0)
+        
         logger.info("Dataset prepared and cached successfully.")
         return dataset
     except FileNotFoundError:
