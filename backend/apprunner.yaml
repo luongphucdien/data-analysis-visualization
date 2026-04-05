@@ -15,7 +15,7 @@ run:
     - name: DATASET_PATH
       value: "41100080.csv"
     - name: PRODUCTION
-      value: "False"
+      value: "True"
     - name: FLASK_DEBUG
       value: "False"
     - name: FRONTEND_URL

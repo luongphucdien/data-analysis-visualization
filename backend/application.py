@@ -6,6 +6,7 @@ from flask_cors import CORS
 import pandas as pd
 from typing import Literal
 from dotenv import load_dotenv
+import boto3
 
 load_dotenv()
 
@@ -19,18 +20,34 @@ cors = CORS(application, resources={r"/*": {"origins": application.config["ALLOW
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+BUCKET_NAME = "data-analysis-bucket-834257582926-us-east-1-an"
+DATASET = application.config["DATASET_PATH"]
+LOCAL_PATH = f"/tmp/{DATASET}"
+
+def download_dataset():
+    if not os.path.exists(LOCAL_PATH):
+        logger.info("Downloading dataset...")
+        s3 = boto3.client("s3")
+        s3.download_file(BUCKET_NAME, DATASET, LOCAL_PATH)
+        logger.info("Dataset downloaded successfully")
+        logger.info("Download completed")
+    else:
+        logger.info("Dataset already downloaded. Skip")
+
+
 def prepare_dataset():
     try:
-        dataset = pd.read_csv(application.config["DATASET_PATH"])
+        download_dataset()
+        dataset = pd.read_csv(LOCAL_PATH)
         logging.info("Dataset loaded successfully.")
         logging.info(f"Columns: {dataset.columns.to_list()}")
 
         drop_cols = ["UOM_ID", "SCALAR_FACTOR", "SCALAR_ID", "VECTOR", "SYMBOL", "TERMINATED", "DECIMALS"]
         dataset["VALUE"] = pd.to_numeric(dataset["VALUE"], errors="coerce")
-        dataset.drop(labels=drop_cols, axis="columns", inplace=True)
+        dataset.drop(labels=drop_cols, axis="columns", inplace=True, errors="ignore")
         dataset = dataset[~(dataset.STATUS == "F")].copy()
         cache.set("dataset", dataset, timeout=0)
-        
+
         logger.info("Dataset prepared and cached successfully.")
         return dataset
     except FileNotFoundError:
@@ -65,7 +82,7 @@ def id_vs_gender_table():
     drop_identity = ["First Nations (North American Indian), Registered or Treaty Indian",
                     "First Nations (North American Indian), not a Registered or Treaty Indian","Indigenous responses not included elsewhere"]
     
-    id_vs_gender = id_vs_gender.drop(index=drop_identity)
+    id_vs_gender = id_vs_gender.drop(index=drop_identity, errors="ignore")
 
 
     id_vs_gender_reset = id_vs_gender.reset_index().rename(columns={
