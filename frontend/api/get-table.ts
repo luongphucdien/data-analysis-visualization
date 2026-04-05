@@ -2,34 +2,46 @@ import { OverallHealth, PersonsOnGender } from "@/types/types"
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL
 
-export const getPersons = async () => {
+const getBaseUrl = () => {
+    if (!API_URL) {
+        console.error(
+            "NEXT_PUBLIC_API_URL is not defined"
+        )
+        return ""
+    }
+    return API_URL
+}
+
+export const getPersons = async (): Promise<PersonsOnGender[]> => {
     try {
-        const response = await fetch(`${API_URL}/persons`, {
-            method: "GET",
-        })
+        const response = await fetch(`${getBaseUrl()}/persons`)
 
         if (!response.ok) {
-            throw new Error(`Response Status: ${response.status}`)
+            throw new Error(
+                `Failed to fetch /persons: ${response.status} ${response.statusText}`
+            )
         }
 
-        const result: PersonsOnGender[] = await response.json()
-        return result
+        return await response.json()
     } catch (error) {
-        console.error(error)
+        console.error("API Error (getPersons):", error)
         return []
     }
 }
 
-export async function getOverallHealth() {
+export async function getOverallHealth(): Promise<OverallHealth[]> {
     try {
-        const response = await fetch(`${API_URL}/health`, {
-            method: "GET",
-        })
+        const response = await fetch(`${getBaseUrl()}/health`)
 
-        const result: OverallHealth[] = await response.json()
-        return result
+        if (!response.ok) {
+            throw new Error(
+                `Failed to fetch /health: ${response.status} ${response.statusText}`
+            )
+        }
+
+        return await response.json()
     } catch (error) {
-        console.error(error)
-        return [] satisfies OverallHealth[]
+        console.error("API Error (getOverallHealth):", error)
+        return []
     }
 }
