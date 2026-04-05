@@ -19,6 +19,6 @@ run:
     - name: FLASK_DEBUG
       value: "False"
     - name: FRONTEND_URL
-      value: "*"
+      value: "https://main.d1tgahbhja2o17.amplifyapp.com"
     - name: CACHE_TIMEOUT
       value: 3600
